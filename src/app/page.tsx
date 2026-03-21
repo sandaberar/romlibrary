@@ -52,13 +52,7 @@ export default function HomePage() {
       setError(null);
       setPageLoading(true);
 
-      const { data: auth, error: authErr } = await supabase.auth.getUser();
-      if (authErr) {
-        console.error("auth.getUser error", authErr);
-        setError(authErr.message);
-      }
-      setUserEmail(auth?.user?.email ?? null);
-
+      // Load the site page content (no auth needed for public pages)
       const res = await supabase
         .from("site_pages")
         .select("slug,title,hero_image_url,body_markdown,updated_at")
@@ -78,6 +72,7 @@ export default function HomePage() {
       setPageLoading(false);
     })();
 
+    // Separately handle auth state changes
     const { data: sub } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setUserEmail(session?.user?.email ?? null);
@@ -244,7 +239,7 @@ export default function HomePage() {
           >
             <div style={{ fontWeight: 800 }}>Community-driven</div>
             <p style={{ margin: "8px 0 0", color: "#555" }}>
-              Add books you’re willing to lend. Keep the library growing.
+              Add books you're willing to lend. Keep the library growing.
             </p>
           </div>
 
@@ -258,7 +253,7 @@ export default function HomePage() {
           >
             <div style={{ fontWeight: 800 }}>Simple requests</div>
             <p style={{ margin: "8px 0 0", color: "#555" }}>
-              Click “Request” to open an email pre-filled to the giver.
+              Click "Request" to open an email pre-filled to the giver.
             </p>
           </div>
         </section>
