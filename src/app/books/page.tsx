@@ -241,7 +241,7 @@ export default function BooksPage() {
       : "#";
 
   return (
-    <main style={{ padding: 24, maxWidth: 1300, margin: "0 auto" }}>
+    <main style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
       <header
         style={{
           display: "flex",
@@ -403,9 +403,6 @@ export default function BooksPage() {
                 Genre
               </th>
               <th style={{ textAlign: "left", padding: "12px 8px", color: "#111", fontWeight: 800 }}>
-                Area
-              </th>
-              <th style={{ textAlign: "left", padding: "12px 8px", color: "#111", fontWeight: 800 }}>
                 Status
               </th>
               <th style={{ textAlign: "center", padding: "12px 8px", color: "#111", fontWeight: 800 }}>
@@ -430,9 +427,6 @@ export default function BooksPage() {
                 </td>
                 <td style={{ padding: "12px 8px", color: "#555" }}>{b.author}</td>
                 <td style={{ padding: "12px 8px", color: "#555" }}>{b.category}</td>
-                <td style={{ padding: "12px 8px", color: "#555" }}>
-                  {areaById.get(b.area_id) ?? "Unknown"}
-                </td>
                 <td style={{ padding: "12px 8px", color: b.available_now ? "green" : "#999" }}>
                   {b.available_now ? "Available" : "Not available"}
                 </td>
