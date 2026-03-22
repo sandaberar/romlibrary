@@ -5,6 +5,17 @@ import { supabase } from "@/lib/supabase/client";
 
 type Area = { id: string; name: string; state: string };
 
+const CATEGORIES = [
+  "Fiction",
+  "Poetry",
+  "Children",
+  "History",
+  "Biography",
+  "Science",
+  "Philosophy",
+  "Cooking",
+];
+
 export default function GivePage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [areas, setAreas] = useState<Area[]>([]);
@@ -13,6 +24,7 @@ export default function GivePage() {
   const [author, setAuthor] = useState("");
   const [publicationYear, setPublicationYear] = useState<string>("");
   const [language, setLanguage] = useState("Romanian");
+  const [category, setCategory] = useState("Fiction");
   const [description, setDescription] = useState("");
   const [copiesTotal, setCopiesTotal] = useState<number>(1);
 
@@ -69,6 +81,7 @@ export default function GivePage() {
       author,
       publication_year: year,
       language,
+      category,
       description: description.trim() ? description.trim() : null,
       copies_total: copiesTotal,
       available_now: true,
@@ -81,6 +94,7 @@ export default function GivePage() {
     setTitle("");
     setAuthor("");
     setPublicationYear("");
+    setCategory("Fiction");
     setDescription("");
     setCopiesTotal(1);
   }
@@ -176,6 +190,28 @@ export default function GivePage() {
                 color: "#111",
               }}
             />
+          </label>
+
+          <label style={{ color: "#111" }}>
+            Category
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              style={{
+                display: "block",
+                width: "100%",
+                padding: 10,
+                borderRadius: 8,
+                border: "1px solid #ccc",
+                color: "#111",
+              }}
+            >
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label style={{ color: "#111" }}>
