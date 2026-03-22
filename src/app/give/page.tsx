@@ -118,11 +118,11 @@ export default function GivePage() {
       </header>
 
       <section style={{ maxWidth: 720, margin: "0 auto", padding: "0 24px 24px" }}>
-        <h1>Give a book</h1>
-        <p>Add a book you're willing to lend.</p>
+        <h1 style={{ color: "#111" }}>Give a book</h1>
+        <p style={{ color: "#555" }}>Add a book you're willing to lend.</p>
 
         <form onSubmit={submit} style={{ marginTop: 16, display: "grid", gap: 12 }}>
-          <label>
+          <label style={{ color: "#111" }}>
             Area
             <select
               value={areaId}
@@ -133,6 +133,7 @@ export default function GivePage() {
                 padding: 10,
                 borderRadius: 8,
                 border: "1px solid #ccc",
+                color: "#111",
               }}
             >
               {areas.map((a) => (
@@ -143,7 +144,7 @@ export default function GivePage() {
             </select>
           </label>
 
-          <label>
+          <label style={{ color: "#111" }}>
             Title
             <input
               value={title}
@@ -155,11 +156,12 @@ export default function GivePage() {
                 padding: 10,
                 borderRadius: 8,
                 border: "1px solid #ccc",
+                color: "#111",
               }}
             />
           </label>
 
-          <label>
+          <label style={{ color: "#111" }}>
             Author
             <input
               value={author}
@@ -171,11 +173,12 @@ export default function GivePage() {
                 padding: 10,
                 borderRadius: 8,
                 border: "1px solid #ccc",
+                color: "#111",
               }}
             />
           </label>
 
-          <label>
+          <label style={{ color: "#111" }}>
             Publication year (optional)
             <input
               value={publicationYear}
@@ -187,11 +190,12 @@ export default function GivePage() {
                 padding: 10,
                 borderRadius: 8,
                 border: "1px solid #ccc",
+                color: "#111",
               }}
             />
           </label>
 
-          <label>
+          <label style={{ color: "#111" }}>
             Language
             <input
               value={language}
@@ -202,11 +206,12 @@ export default function GivePage() {
                 padding: 10,
                 borderRadius: 8,
                 border: "1px solid #ccc",
+                color: "#111",
               }}
             />
           </label>
 
-          <label>
+          <label style={{ color: "#111" }}>
             Copies total
             <input
               type="number"
@@ -219,11 +224,12 @@ export default function GivePage() {
                 padding: 10,
                 borderRadius: 8,
                 border: "1px solid #ccc",
+                color: "#111",
               }}
             />
           </label>
 
-          <label>
+          <label style={{ color: "#111" }}>
             Description (optional)
             <textarea
               value={description}
@@ -235,6 +241,7 @@ export default function GivePage() {
                 padding: 10,
                 borderRadius: 8,
                 border: "1px solid #ccc",
+                color: "#111",
               }}
             />
           </label>
