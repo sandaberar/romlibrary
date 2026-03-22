@@ -19,9 +19,9 @@ type Book = {
   created_at: string;
 };
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 50;
 
-const CATEGORIES = [
+const GENRES = [
   "Fiction",
   "Poetry",
   "Children",
@@ -31,6 +31,8 @@ const CATEGORIES = [
   "Philosophy",
   "Cooking",
 ];
+
+type SortOption = "title" | "author" | "genre" | "area" | "date";
 
 type RequestPanelState = {
   open: boolean;
@@ -42,6 +44,11 @@ type RequestPanelState = {
   author: string;
 };
 
+type DetailsPanelState = {
+  open: boolean;
+  book: Book | null;
+};
+
 export default function BooksPage() {
   const [areas, setAreas] = useState<Area[]>([]);
   const [books, setBooks] = useState<Book[]>([]);
@@ -49,8 +56,9 @@ export default function BooksPage() {
 
   const [q, setQ] = useState("");
   const [areaId, setAreaId] = useState<string>("all");
-  const [category, setCategory] = useState<string>("all");
+  const [genre, setGenre] = useState<string>("all");
   const [onlyAvailable, setOnlyAvailable] = useState<boolean>(true);
+  const [sortBy, setSortBy] = useState<SortOption>("date");
   const [page, setPage] = useState<number>(1);
 
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -65,6 +73,11 @@ export default function BooksPage() {
     bookId: null,
     title: "",
     author: "",
+  });
+
+  const [detailsPanel, setDetailsPanel] = useState<DetailsPanelState>({
+    open: false,
+    book: null,
   });
 
   const areaById = useMemo(
@@ -119,7 +132,6 @@ export default function BooksPage() {
       await navigator.clipboard.writeText(email);
       alert("Copied email to clipboard.");
     } catch {
-      // fallback for older browsers / blocked clipboard perms
       prompt("Copy this email:", email);
     }
   }
@@ -159,19 +171,34 @@ export default function BooksPage() {
         .select(
           "id,title,author,publication_year,language,category,description,available_now,copies_total,area_id,created_at",
           { count: "exact" }
-        )
-        .order("created_at", { ascending: false })
-        .range(from, to);
+        );
 
+      // Apply filters
       if (onlyAvailable) query = query.eq("available_now", true);
       if (areaId !== "all") query = query.eq("area_id", areaId);
-      if (category !== "all") query = query.eq("category", category);
+      if (genre !== "all") query = query.eq("category", genre);
 
       const term = q.trim();
       if (term) {
         const escaped = term.replace(/[%_]/g, "\\$&");
         query = query.or(`title.ilike.%${escaped}%,author.ilike.%${escaped}%`);
       }
+
+      // Apply sorting
+      if (sortBy === "title") {
+        query = query.order("title", { ascending: true });
+      } else if (sortBy === "author") {
+        query = query.order("author", { ascending: true });
+      } else if (sortBy === "genre") {
+        query = query.order("category", { ascending: true });
+      } else if (sortBy === "area") {
+        query = query.order("area_id", { ascending: true });
+      } else {
+        // date (default)
+        query = query.order("created_at", { ascending: false });
+      }
+
+      query = query.range(from, to);
 
       const { data, error, count } = await query;
 
@@ -184,7 +211,7 @@ export default function BooksPage() {
 
       setLoading(false);
     })();
-  }, [q, areaId, category, onlyAvailable, page]);
+  }, [q, areaId, genre, onlyAvailable, page, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -198,8 +225,13 @@ export default function BooksPage() {
     setPage(1);
   }
 
-  function onChangeCategory(v: string) {
-    setCategory(v);
+  function onChangeGenre(v: string) {
+    setGenre(v);
+    setPage(1);
+  }
+
+  function onChangeSort(v: string) {
+    setSortBy(v as SortOption);
     setPage(1);
   }
 
@@ -209,7 +241,7 @@ export default function BooksPage() {
       : "#";
 
   return (
-    <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
+    <main style={{ padding: 24, maxWidth: 1300, margin: "0 auto" }}>
       <header
         style={{
           display: "flex",
@@ -224,7 +256,7 @@ export default function BooksPage() {
             Books
           </h1>
           <p style={{ marginTop: 6, color: "#555" }}>
-            Search by title/author, filter by area and category, and request via email.
+            Search, filter, and sort books in our library.
           </p>
         </div>
         <nav style={{ color: "#666" }}>
@@ -238,16 +270,16 @@ export default function BooksPage() {
           marginTop: 16,
           display: "grid",
           gap: 12,
-          gridTemplateColumns: "1fr 200px 200px 200px",
+          gridTemplateColumns: "1fr 180px 180px 180px 180px",
           alignItems: "end",
         }}
       >
         <label style={{ color: "#111" }}>
-          Search
+          Search (Title or Author)
           <input
             value={q}
             onChange={(e) => onChangeSearch(e.target.value)}
-            placeholder="e.g. Solenoid, Cărtărescu…"
+            placeholder="e.g. Cărtărescu, Poetry…"
             style={{
               display: "block",
               width: "100%",
@@ -276,17 +308,17 @@ export default function BooksPage() {
             <option value="all">All areas</option>
             {areas.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.name}, {a.state}
+                {a.name}
               </option>
             ))}
           </select>
         </label>
 
         <label style={{ color: "#111" }}>
-          Category
+          Genre
           <select
-            value={category}
-            onChange={(e) => onChangeCategory(e.target.value)}
+            value={genre}
+            onChange={(e) => onChangeGenre(e.target.value)}
             style={{
               display: "block",
               width: "100%",
@@ -296,12 +328,34 @@ export default function BooksPage() {
               color: "#111",
             }}
           >
-            <option value="all">All categories</option>
-            {CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
+            <option value="all">All genres</option>
+            {GENRES.map((g) => (
+              <option key={g} value={g}>
+                {g}
               </option>
             ))}
+          </select>
+        </label>
+
+        <label style={{ color: "#111" }}>
+          Sort by
+          <select
+            value={sortBy}
+            onChange={(e) => onChangeSort(e.target.value)}
+            style={{
+              display: "block",
+              width: "100%",
+              padding: 10,
+              borderRadius: 10,
+              border: "1px solid #ddd",
+              color: "#111",
+            }}
+          >
+            <option value="date">Newest first</option>
+            <option value="title">Title (A-Z)</option>
+            <option value="author">Author (A-Z)</option>
+            <option value="genre">Genre (A-Z)</option>
+            <option value="area">Area (A-Z)</option>
           </select>
         </label>
 
@@ -314,7 +368,7 @@ export default function BooksPage() {
               setPage(1);
             }}
           />
-          Only available
+          Available only
         </label>
       </section>
 
@@ -328,46 +382,278 @@ export default function BooksPage() {
         </pre>
       ) : null}
 
-      <section
+      {/* Table view */}
+      <section style={{ marginTop: 16, overflowX: "auto" }}>
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            fontSize: 14,
+          }}
+        >
+          <thead>
+            <tr style={{ borderBottom: "2px solid #111" }}>
+              <th style={{ textAlign: "left", padding: "12px 8px", color: "#111", fontWeight: 800 }}>
+                Title
+              </th>
+              <th style={{ textAlign: "left", padding: "12px 8px", color: "#111", fontWeight: 800 }}>
+                Author
+              </th>
+              <th style={{ textAlign: "left", padding: "12px 8px", color: "#111", fontWeight: 800 }}>
+                Genre
+              </th>
+              <th style={{ textAlign: "left", padding: "12px 8px", color: "#111", fontWeight: 800 }}>
+                Area
+              </th>
+              <th style={{ textAlign: "left", padding: "12px 8px", color: "#111", fontWeight: 800 }}>
+                Status
+              </th>
+              <th style={{ textAlign: "center", padding: "12px 8px", color: "#111", fontWeight: 800 }}>
+                Action
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {books.map((b) => (
+              <tr
+                key={b.id}
+                style={{
+                  borderBottom: "1px solid #eee",
+                  backgroundColor: b.available_now ? "#fff" : "#fafafa",
+                }}
+              >
+                <td style={{ padding: "12px 8px", color: "#111" }}>
+                  <div style={{ fontWeight: 700 }}>{b.title}</div>
+                  {b.publication_year && (
+                    <div style={{ fontSize: 12, color: "#999" }}>({b.publication_year})</div>
+                  )}
+                </td>
+                <td style={{ padding: "12px 8px", color: "#555" }}>{b.author}</td>
+                <td style={{ padding: "12px 8px", color: "#555" }}>{b.category}</td>
+                <td style={{ padding: "12px 8px", color: "#555" }}>
+                  {areaById.get(b.area_id) ?? "Unknown"}
+                </td>
+                <td style={{ padding: "12px 8px", color: b.available_now ? "green" : "#999" }}>
+                  {b.available_now ? "Available" : "Not available"}
+                </td>
+                <td style={{ padding: "12px 8px", textAlign: "center" }}>
+                  <button
+                    onClick={() => setDetailsPanel({ open: true, book: b })}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: 6,
+                      border: "1px solid #ddd",
+                      background: "#f5f5f5",
+                      color: "#111",
+                      cursor: "pointer",
+                      marginRight: 6,
+                      fontSize: 12,
+                    }}
+                  >
+                    Details
+                  </button>
+                  {userEmail ? (
+                    <button
+                      onClick={() => openRequestPanel(b.id, b.title, b.author)}
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: 6,
+                        border: "1px solid #111",
+                        background: "#111",
+                        color: "#fff",
+                        cursor: "pointer",
+                        fontSize: 12,
+                        fontWeight: 700,
+                      }}
+                    >
+                      Request
+                    </button>
+                  ) : (
+                    <a
+                      href="/login"
+                      style={{
+                        display: "inline-block",
+                        padding: "6px 12px",
+                        borderRadius: 6,
+                        border: "1px solid #ddd",
+                        background: "#f5f5f5",
+                        color: "#111",
+                        textDecoration: "none",
+                        fontSize: 12,
+                        fontWeight: 700,
+                      }}
+                    >
+                      Login
+                    </a>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {books.length === 0 && !loading && (
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "#999" }}>
+            No books found.
+          </div>
+        )}
+      </section>
+
+      {/* Pagination */}
+      <footer
         style={{
-          marginTop: 16,
-          display: "grid",
-          gap: 12,
-          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+          display: "flex",
+          gap: 8,
+          marginTop: 18,
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        {books.map((b) => (
-          <article
-            key={b.id}
+        <button
+          disabled={page <= 1}
+          onClick={() => setPage((p) => p - 1)}
+          style={{
+            padding: "8px 12px",
+            borderRadius: 6,
+            border: "1px solid #ddd",
+            background: page <= 1 ? "#f5f5f5" : "#fff",
+            color: "#111",
+            cursor: page <= 1 ? "not-allowed" : "pointer",
+          }}
+        >
+          Prev
+        </button>
+
+        <div style={{ color: "#555", fontSize: 13 }}>
+          Page {page} / {Math.max(1, totalPages)}
+        </div>
+
+        <button
+          disabled={page >= totalPages}
+          onClick={() => setPage((p) => p + 1)}
+          style={{
+            padding: "8px 12px",
+            borderRadius: 6,
+            border: "1px solid #ddd",
+            background: page >= totalPages ? "#f5f5f5" : "#fff",
+            color: "#111",
+            cursor: page >= totalPages ? "not-allowed" : "pointer",
+          }}
+        >
+          Next
+        </button>
+      </footer>
+
+      {/* Details Modal */}
+      {detailsPanel.open && detailsPanel.book ? (
+        <div
+          onClick={() => setDetailsPanel({ open: false, book: null })}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,.45)",
+            display: "grid",
+            placeItems: "center",
+            padding: 16,
+            zIndex: 50,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
             style={{
-              border: "1px solid #eee",
-              borderRadius: 14,
-              padding: 16,
+              width: "min(600px, 100%)",
               background: "#fff",
+              borderRadius: 14,
+              border: "1px solid #eee",
+              padding: 24,
+              boxShadow: "0 20px 60px rgba(0,0,0,.25)",
+              maxHeight: "90vh",
+              overflowY: "auto",
             }}
           >
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#111" }}>{b.title}</div>
-            <div style={{ marginTop: 4, color: "#555" }}>
-              {b.author}
-              {b.publication_year ? ` • ${b.publication_year}` : ""} • {b.language}
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111" }}>
+                  {detailsPanel.book.title}
+                </h2>
+                <p style={{ margin: "6px 0 0", color: "#555", fontSize: 14 }}>
+                  by {detailsPanel.book.author}
+                </p>
+              </div>
+              <button
+                onClick={() => setDetailsPanel({ open: false, book: null })}
+                style={{
+                  border: "1px solid #ddd",
+                  background: "#fff",
+                  borderRadius: 10,
+                  padding: "8px 10px",
+                  cursor: "pointer",
+                  color: "#111",
+                  fontWeight: 700,
+                }}
+              >
+                Close
+              </button>
             </div>
 
-            <div style={{ marginTop: 6, fontSize: 13, color: "#666" }}>
-              {b.category} • {areaById.get(b.area_id) ?? "Unknown area"} •{" "}
-              {b.available_now ? "Available" : "Not available"} • Copies: {b.copies_total}
+            <div style={{ borderTop: "1px solid #eee", paddingTop: 16 }}>
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: "#999", fontWeight: 700 }}>GENRE</div>
+                <div style={{ color: "#111", marginTop: 4 }}>{detailsPanel.book.category}</div>
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: "#999", fontWeight: 700 }}>AREA</div>
+                <div style={{ color: "#111", marginTop: 4 }}>
+                  {areaById.get(detailsPanel.book.area_id) ?? "Unknown"}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: "#999", fontWeight: 700 }}>LANGUAGE</div>
+                <div style={{ color: "#111", marginTop: 4 }}>{detailsPanel.book.language}</div>
+              </div>
+
+              {detailsPanel.book.publication_year && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, color: "#999", fontWeight: 700 }}>YEAR</div>
+                  <div style={{ color: "#111", marginTop: 4 }}>{detailsPanel.book.publication_year}</div>
+                </div>
+              )}
+
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: "#999", fontWeight: 700 }}>STATUS</div>
+                <div
+                  style={{
+                    color: detailsPanel.book.available_now ? "green" : "#999",
+                    marginTop: 4,
+                    fontWeight: 700,
+                  }}
+                >
+                  {detailsPanel.book.available_now ? "Available" : "Not available"}
+                </div>
+              </div>
+
+              {detailsPanel.book.description && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, color: "#999", fontWeight: 700 }}>DESCRIPTION</div>
+                  <p style={{ color: "#333", marginTop: 8, lineHeight: 1.6 }}>
+                    {detailsPanel.book.description}
+                  </p>
+                </div>
+              )}
             </div>
 
-            {b.description ? (
-              <p style={{ marginTop: 10, color: "#333" }}>{b.description}</p>
-            ) : null}
-
-            <div style={{ marginTop: 12 }}>
+            <div style={{ display: "flex", gap: 10, marginTop: 20, borderTop: "1px solid #eee", paddingTop: 16 }}>
               {userEmail ? (
                 <button
-                  onClick={() => openRequestPanel(b.id, b.title, b.author)}
+                  onClick={() => {
+                    setDetailsPanel({ open: false, book: null });
+                    openRequestPanel(detailsPanel.book!.id, detailsPanel.book!.title, detailsPanel.book!.author);
+                  }}
                   style={{
-                    width: "100%",
-                    padding: "10px 12px",
+                    flex: 1,
+                    padding: "12px",
                     borderRadius: 10,
                     border: "1px solid #111",
                     background: "#111",
@@ -382,15 +668,16 @@ export default function BooksPage() {
                 <a
                   href="/login"
                   style={{
-                    display: "block",
-                    textAlign: "center",
-                    width: "100%",
-                    padding: "10px 12px",
+                    flex: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "12px",
                     borderRadius: 10,
                     border: "1px solid #ddd",
-                    background: "#fff",
+                    background: "#f5f5f5",
                     color: "#111",
-                    fontWeight: 700,
+                    fontWeight: 800,
                     textDecoration: "none",
                   }}
                 >
@@ -398,33 +685,11 @@ export default function BooksPage() {
                 </a>
               )}
             </div>
-          </article>
-        ))}
-      </section>
-
-      <footer
-        style={{
-          display: "flex",
-          gap: 8,
-          marginTop: 18,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-          Prev
-        </button>
-
-        <div style={{ color: "#555" }}>
-          Page {page} / {Math.max(1, totalPages)}
+          </div>
         </div>
+      ) : null}
 
-        <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-          Next
-        </button>
-      </footer>
-
-      {/* Request panel (Option A fallback for mailto) */}
+      {/* Request Panel (Email modal) */}
       {requestPanel.open ? (
         <div
           onClick={() => setRequestPanel((p) => ({ ...p, open: false }))}
@@ -435,7 +700,7 @@ export default function BooksPage() {
             display: "grid",
             placeItems: "center",
             padding: 16,
-            zIndex: 50,
+            zIndex: 51,
           }}
         >
           <div
