@@ -11,6 +11,7 @@ type Book = {
   author: string;
   publication_year: number | null;
   language: string;
+  category: string;
   description: string | null;
   available_now: boolean;
   copies_total: number;
@@ -19,6 +20,17 @@ type Book = {
 };
 
 const PAGE_SIZE = 24;
+
+const CATEGORIES = [
+  "Fiction",
+  "Poetry",
+  "Children",
+  "History",
+  "Biography",
+  "Science",
+  "Philosophy",
+  "Cooking",
+];
 
 type RequestPanelState = {
   open: boolean;
@@ -37,6 +49,7 @@ export default function BooksPage() {
 
   const [q, setQ] = useState("");
   const [areaId, setAreaId] = useState<string>("all");
+  const [category, setCategory] = useState<string>("all");
   const [onlyAvailable, setOnlyAvailable] = useState<boolean>(true);
   const [page, setPage] = useState<number>(1);
 
@@ -144,7 +157,7 @@ export default function BooksPage() {
       let query = supabase
         .from("books")
         .select(
-          "id,title,author,publication_year,language,description,available_now,copies_total,area_id,created_at",
+          "id,title,author,publication_year,language,category,description,available_now,copies_total,area_id,created_at",
           { count: "exact" }
         )
         .order("created_at", { ascending: false })
@@ -152,6 +165,7 @@ export default function BooksPage() {
 
       if (onlyAvailable) query = query.eq("available_now", true);
       if (areaId !== "all") query = query.eq("area_id", areaId);
+      if (category !== "all") query = query.eq("category", category);
 
       const term = q.trim();
       if (term) {
@@ -170,7 +184,7 @@ export default function BooksPage() {
 
       setLoading(false);
     })();
-  }, [q, areaId, onlyAvailable, page]);
+  }, [q, areaId, category, onlyAvailable, page]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -181,6 +195,11 @@ export default function BooksPage() {
 
   function onChangeArea(v: string) {
     setAreaId(v);
+    setPage(1);
+  }
+
+  function onChangeCategory(v: string) {
+    setCategory(v);
     setPage(1);
   }
 
@@ -201,11 +220,11 @@ export default function BooksPage() {
         }}
       >
         <div>
-          <h1 style={{ margin: 0, fontSize: 34, fontWeight: 900, letterSpacing: -0.4 }}>
+          <h1 style={{ margin: 0, fontSize: 34, fontWeight: 900, letterSpacing: -0.4, color: "#111" }}>
             Books
           </h1>
           <p style={{ marginTop: 6, color: "#555" }}>
-            Search by title/author, filter by area, and request via email.
+            Search by title/author, filter by area and category, and request via email.
           </p>
         </div>
         <nav style={{ color: "#666" }}>
@@ -219,11 +238,11 @@ export default function BooksPage() {
           marginTop: 16,
           display: "grid",
           gap: 12,
-          gridTemplateColumns: "1fr 260px 200px",
+          gridTemplateColumns: "1fr 200px 200px 200px",
           alignItems: "end",
         }}
       >
-        <label>
+        <label style={{ color: "#111" }}>
           Search
           <input
             value={q}
@@ -235,11 +254,12 @@ export default function BooksPage() {
               padding: 10,
               borderRadius: 10,
               border: "1px solid #ddd",
+              color: "#111",
             }}
           />
         </label>
 
-        <label>
+        <label style={{ color: "#111" }}>
           Area
           <select
             value={areaId}
@@ -250,6 +270,7 @@ export default function BooksPage() {
               padding: 10,
               borderRadius: 10,
               border: "1px solid #ddd",
+              color: "#111",
             }}
           >
             <option value="all">All areas</option>
@@ -261,7 +282,30 @@ export default function BooksPage() {
           </select>
         </label>
 
-        <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <label style={{ color: "#111" }}>
+          Category
+          <select
+            value={category}
+            onChange={(e) => onChangeCategory(e.target.value)}
+            style={{
+              display: "block",
+              width: "100%",
+              padding: 10,
+              borderRadius: 10,
+              border: "1px solid #ddd",
+              color: "#111",
+            }}
+          >
+            <option value="all">All categories</option>
+            {CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label style={{ display: "flex", gap: 8, alignItems: "center", color: "#111" }}>
           <input
             type="checkbox"
             checked={onlyAvailable}
@@ -302,14 +346,14 @@ export default function BooksPage() {
               background: "#fff",
             }}
           >
-            <div style={{ fontSize: 18, fontWeight: 800 }}>{b.title}</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#111" }}>{b.title}</div>
             <div style={{ marginTop: 4, color: "#555" }}>
               {b.author}
               {b.publication_year ? ` • ${b.publication_year}` : ""} • {b.language}
             </div>
 
             <div style={{ marginTop: 6, fontSize: 13, color: "#666" }}>
-              {areaById.get(b.area_id) ?? "Unknown area"} •{" "}
+              {b.category} • {areaById.get(b.area_id) ?? "Unknown area"} •{" "}
               {b.available_now ? "Available" : "Not available"} • Copies: {b.copies_total}
             </div>
 
@@ -407,7 +451,7 @@ export default function BooksPage() {
           >
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
               <div>
-                <div style={{ fontWeight: 900, fontSize: 18 }}>Request info</div>
+                <div style={{ fontWeight: 900, fontSize: 18, color: "#111" }}>Request info</div>
                 <div style={{ marginTop: 4, color: "#555" }}>
                   {requestPanel.title} — {requestPanel.author}
                 </div>
@@ -421,6 +465,7 @@ export default function BooksPage() {
                   borderRadius: 10,
                   padding: "8px 10px",
                   cursor: "pointer",
+                  color: "#111",
                 }}
               >
                 Close
@@ -429,13 +474,13 @@ export default function BooksPage() {
 
             <div style={{ marginTop: 14 }}>
               {requestPanel.loading ? (
-                <p style={{ margin: 0 }}>Loading giver email…</p>
+                <p style={{ margin: 0, color: "#111" }}>Loading giver email…</p>
               ) : requestPanel.error ? (
                 <p style={{ margin: 0, color: "crimson" }}>{requestPanel.error}</p>
               ) : requestPanel.giverEmail ? (
                 <>
                   <div style={{ fontSize: 13, color: "#666" }}>Giver email</div>
-                  <div style={{ fontWeight: 800, marginTop: 4 }}>
+                  <div style={{ fontWeight: 800, marginTop: 4, color: "#111" }}>
                     {requestPanel.giverEmail}
                   </div>
 
@@ -449,6 +494,7 @@ export default function BooksPage() {
                         background: "#fff",
                         fontWeight: 800,
                         cursor: "pointer",
+                        color: "#111",
                       }}
                     >
                       Copy email
@@ -471,7 +517,7 @@ export default function BooksPage() {
                   </div>
 
                   <p style={{ marginTop: 12, color: "#666", fontSize: 13 }}>
-                    If “Open email app” doesn’t work on this device, copy the email and send
+                    If "Open email app" doesn't work on this device, copy the email and send
                     the request from Gmail/Outlook/webmail.
                   </p>
                 </>
