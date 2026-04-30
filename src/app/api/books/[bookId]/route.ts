@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase/client";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function PATCH(
@@ -9,9 +8,21 @@ export async function PATCH(
   try {
     const bookId = params.bookId;
     
-    // Get current user
-    const { data: authData, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !authData.user) {
+    // Get the session from the request headers
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader) {
+      return NextResponse.json(
+        { error: "You must be logged in" },
+        { status: 401 }
+      );
+    }
+
+    // Extract token from "Bearer {token}"
+    const token = authHeader.replace("Bearer ", "");
+
+    // Verify the token and get user
+    const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
+    if (userErr || !userData.user) {
       return NextResponse.json(
         { error: "You must be logged in" },
         { status: 401 }
@@ -29,7 +40,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Book not found" }, { status: 404 });
     }
 
-    if (book.owner_user_id !== authData.user.id) {
+    if (book.owner_user_id !== userData.user.id) {
       return NextResponse.json(
         { error: "You can only edit your own books" },
         { status: 403 }
@@ -87,9 +98,21 @@ export async function DELETE(
   try {
     const bookId = params.bookId;
 
-    // Get current user
-    const { data: authData, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !authData.user) {
+    // Get the session from the request headers
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader) {
+      return NextResponse.json(
+        { error: "You must be logged in" },
+        { status: 401 }
+      );
+    }
+
+    // Extract token from "Bearer {token}"
+    const token = authHeader.replace("Bearer ", "");
+
+    // Verify the token and get user
+    const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
+    if (userErr || !userData.user) {
       return NextResponse.json(
         { error: "You must be logged in" },
         { status: 401 }
@@ -107,7 +130,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Book not found" }, { status: 404 });
     }
 
-    if (book.owner_user_id !== authData.user.id) {
+    if (book.owner_user_id !== userData.user.id) {
       return NextResponse.json(
         { error: "You can only delete your own books" },
         { status: 403 }
