@@ -223,7 +223,7 @@ export default function HomePage() {
               background: "#fff",
             }}
           >
-            <div style={{ fontWeight: 800 }}>Borrow locally</div>
+            <div style={{ fontWeight: 800 }}>Browse Books </div>
             <p style={{ margin: "8px 0 0", color: "#555" }}>
               Find Romanian books in your area and contact the giver.
             </p>
@@ -237,7 +237,7 @@ export default function HomePage() {
               background: "#fff",
             }}
           >
-            <div style={{ fontWeight: 800 }}>Community-driven</div>
+            <div style={{ fontWeight: 800 }}>Loan Books </div>
             <p style={{ margin: "8px 0 0", color: "#555" }}>
               Login required. Add books you're willing to lend. Keep the library growing.
             </p>
@@ -251,7 +251,7 @@ export default function HomePage() {
               background: "#fff",
             }}
           >
-            <div style={{ fontWeight: 800 }}>Simple requests</div>
+            <div style={{ fontWeight: 800 }}>Borrow Books</div>
             <p style={{ margin: "8px 0 0", color: "#555" }}>
               Login Required. Click "Request" to open an email pre-filled to the giver. 
             </p>
