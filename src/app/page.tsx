@@ -239,7 +239,7 @@ export default function HomePage() {
           >
             <div style={{ fontWeight: 800 }}>Community-driven</div>
             <p style={{ margin: "8px 0 0", color: "#555" }}>
-              Add books you're willing to lend. Keep the library growing.
+              Login required. Add books you're willing to lend. Keep the library growing.
             </p>
           </div>
 
@@ -253,7 +253,7 @@ export default function HomePage() {
           >
             <div style={{ fontWeight: 800 }}>Simple requests</div>
             <p style={{ margin: "8px 0 0", color: "#555" }}>
-              Click "Request" to open an email pre-filled to the giver.
+              Login Required. Click "Request" to open an email pre-filled to the giver. 
             </p>
           </div>
         </section>
