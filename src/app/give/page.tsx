@@ -18,6 +18,7 @@ const CATEGORIES = [
 
 export default function GivePage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [areas, setAreas] = useState<Area[]>([]);
   const [areaId, setAreaId] = useState("");
   const [title, setTitle] = useState("");
@@ -34,20 +35,29 @@ export default function GivePage() {
   useEffect(() => {
     (async () => {
       setError(null);
-      const { data, error } = await supabase
-        .from("areas")
-        .select("id,name,state")
-        .eq("is_active", true)
-        .order("name");
+      
+      // Check auth state first
+      const { data: authData } = await supabase.auth.getUser();
+      setUserEmail(authData.user?.email ?? null);
+      setLoading(false);
 
-      if (error) setError(error.message);
-      else {
-        setAreas(data ?? []);
-        if ((data ?? []).length && !areaId) setAreaId((data ?? [])[0].id);
+      // Only load areas if user is logged in
+      if (authData.user) {
+        const { data, error } = await supabase
+          .from("areas")
+          .select("id,name,state")
+          .eq("is_active", true)
+          .order("name");
+
+        if (error) setError(error.message);
+        else {
+          setAreas(data ?? []);
+          if ((data ?? []).length && !areaId) setAreaId((data ?? [])[0].id);
+        }
       }
     })();
 
-    // Auth state
+    // Auth state listener
     const { data: sub } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setUserEmail(session?.user?.email ?? null);
@@ -97,6 +107,89 @@ export default function GivePage() {
     setCategory("Fiction");
     setDescription("");
     setCopiesTotal(1);
+  }
+
+  if (loading) {
+    return (
+      <main style={{ minHeight: "100vh", background: "#fafafa" }}>
+        <header
+          style={{
+            maxWidth: 1100,
+            margin: "0 auto",
+            padding: "18px 24px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <div style={{ fontWeight: 800 }}>Romanian Community Library</div>
+
+          <nav style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <a href="/">Home</a>
+            <a href="/books">Books</a>
+            <a href="/give">Give</a>
+            <a href="/admin/home">Admin</a>
+          </nav>
+        </header>
+
+        <section style={{ maxWidth: 720, margin: "0 auto", padding: "0 24px 24px" }}>
+          <p style={{ color: "#555" }}>Loading…</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (!userEmail) {
+    return (
+      <main style={{ minHeight: "100vh", background: "#fafafa" }}>
+        <header
+          style={{
+            maxWidth: 1100,
+            margin: "0 auto",
+            padding: "18px 24px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <div style={{ fontWeight: 800 }}>Romanian Community Library</div>
+
+          <nav style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <a href="/">Home</a>
+            <a href="/books">Books</a>
+            <a href="/give">Give</a>
+            <a href="/admin/home">Admin</a>
+
+            <a href="/login">Login</a>
+          </nav>
+        </header>
+
+        <section style={{ maxWidth: 720, margin: "0 auto", padding: "0 24px 24px" }}>
+          <h1 style={{ color: "#111" }}>Give a book</h1>
+          <p style={{ color: "#555" }}>
+            You must log in first to add a book to the library.
+          </p>
+          <p style={{ marginTop: 16 }}>
+            <a
+              href="/login"
+              style={{
+                display: "inline-block",
+                padding: "10px 14px",
+                borderRadius: 8,
+                background: "#111",
+                color: "#fff",
+                textDecoration: "none",
+                fontWeight: 800,
+              }}
+            >
+              Go to Login
+            </a>
+          </p>
+        </section>
+      </main>
+    );
   }
 
   return (
