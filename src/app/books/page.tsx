@@ -17,6 +17,7 @@ type Book = {
   copies_total: number;
   area_id: string;
   created_at: string;
+  owner_user_id: string;
 };
 
 const PAGE_SIZE = 50;
@@ -47,6 +48,9 @@ type RequestPanelState = {
 type DetailsPanelState = {
   open: boolean;
   book: Book | null;
+  isEditing: boolean;
+  editData: Partial<Book> | null;
+  isSaving: boolean;
 };
 
 export default function BooksPage() {
@@ -62,6 +66,7 @@ export default function BooksPage() {
   const [page, setPage] = useState<number>(1);
 
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,6 +83,9 @@ export default function BooksPage() {
   const [detailsPanel, setDetailsPanel] = useState<DetailsPanelState>({
     open: false,
     book: null,
+    isEditing: false,
+    editData: null,
+    isSaving: false,
   });
 
   const areaById = useMemo(
@@ -136,10 +144,95 @@ export default function BooksPage() {
     }
   }
 
+  function openEditMode() {
+    if (detailsPanel.book) {
+      setDetailsPanel((p) => ({
+        ...p,
+        isEditing: true,
+        editData: { ...p.book! },
+      }));
+    }
+  }
+
+  function closeEditMode() {
+    setDetailsPanel((p) => ({
+      ...p,
+      isEditing: false,
+      editData: null,
+    }));
+  }
+
+  async function saveEdit() {
+    if (!detailsPanel.book || !detailsPanel.editData) return;
+
+    setDetailsPanel((p) => ({ ...p, isSaving: true }));
+
+    const { data: authData } = await supabase.auth.getSession();
+    const token = authData.session?.access_token;
+
+    const res = await fetch(`/api/books/${detailsPanel.book.id}`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        authorization: token ? `Bearer ${token}` : "",
+      },
+      body: JSON.stringify(detailsPanel.editData),
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+      alert(`Error: ${json.error ?? "Unknown error"}`);
+      setDetailsPanel((p) => ({ ...p, isSaving: false }));
+      return;
+    }
+
+    setDetailsPanel((p) => ({
+      ...p,
+      isSaving: false,
+      isEditing: false,
+      editData: null,
+      book: { ...p.book!, ...p.editData! },
+    }));
+
+    // Refresh book list
+    setPage(1);
+  }
+
+  async function deleteBook() {
+    if (!detailsPanel.book) return;
+
+    if (!confirm("Are you sure you want to delete this book?")) return;
+
+    setDetailsPanel((p) => ({ ...p, isSaving: true }));
+
+    const { data: authData } = await supabase.auth.getSession();
+    const token = authData.session?.access_token;
+
+    const res = await fetch(`/api/books/${detailsPanel.book.id}`, {
+      method: "DELETE",
+      headers: {
+        authorization: token ? `Bearer ${token}` : "",
+      },
+    });
+
+    const json = await res.json();
+
+    if (!res.ok) {
+      alert(`Error: ${json.error ?? "Unknown error"}`);
+      setDetailsPanel((p) => ({ ...p, isSaving: false }));
+      return;
+    }
+
+    setDetailsPanel({ open: false, book: null, isEditing: false, editData: null, isSaving: false });
+    setPage(1);
+  }
+
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getUser();
       setUserEmail(data.user?.email ?? null);
+      setUserId(data.user?.id ?? null);
 
       const { data: areasData, error: areasErr } = await supabase
         .from("areas")
@@ -153,6 +246,7 @@ export default function BooksPage() {
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserEmail(session?.user?.email ?? null);
+      setUserId(session?.user?.id ?? null);
     });
 
     return () => sub.subscription.unsubscribe();
@@ -169,7 +263,7 @@ export default function BooksPage() {
       let query = supabase
         .from("books")
         .select(
-          "id,title,author,publication_year,language,category,description,available_now,copies_total,area_id,created_at",
+          "id,title,author,publication_year,language,category,description,available_now,copies_total,area_id,created_at,owner_user_id",
           { count: "exact" }
         );
 
@@ -239,6 +333,8 @@ export default function BooksPage() {
     requestPanel.giverEmail && requestPanel.open
       ? makeMailto(requestPanel.giverEmail, requestPanel.title, requestPanel.author)
       : "#";
+
+  const isBookOwner = detailsPanel.book && userId && detailsPanel.book.owner_user_id === userId;
 
   return (
     <main style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
@@ -432,7 +528,7 @@ export default function BooksPage() {
                 </td>
                 <td style={{ padding: "12px 8px", textAlign: "center" }}>
                   <button
-                    onClick={() => setDetailsPanel({ open: true, book: b })}
+                    onClick={() => setDetailsPanel({ open: true, book: b, isEditing: false, editData: null, isSaving: false })}
                     style={{
                       padding: "6px 12px",
                       borderRadius: 6,
@@ -446,7 +542,41 @@ export default function BooksPage() {
                   >
                     Details
                   </button>
-                  {userEmail ? (
+                  {userEmail && userId === b.owner_user_id ? (
+                    <>
+                      <button
+                        onClick={() => setDetailsPanel({ open: true, book: b, isEditing: false, editData: null, isSaving: false })}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: 6,
+                          border: "1px solid #ff9500",
+                          background: "#fff",
+                          color: "#ff9500",
+                          cursor: "pointer",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          marginRight: 6,
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={deleteBook}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: 6,
+                          border: "1px solid #d32f2f",
+                          background: "#fff",
+                          color: "#d32f2f",
+                          cursor: "pointer",
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  ) : userEmail ? (
                     <button
                       onClick={() => openRequestPanel(b.id, b.title, b.author)}
                       style={{
@@ -541,7 +671,7 @@ export default function BooksPage() {
       {/* Details Modal */}
       {detailsPanel.open && detailsPanel.book ? (
         <div
-          onClick={() => setDetailsPanel({ open: false, book: null })}
+          onClick={() => setDetailsPanel({ open: false, book: null, isEditing: false, editData: null, isSaving: false })}
           style={{
             position: "fixed",
             inset: 0,
@@ -568,14 +698,16 @@ export default function BooksPage() {
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
               <div>
                 <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: "#111" }}>
-                  {detailsPanel.book.title}
+                  {detailsPanel.isEditing ? "Edit Book" : detailsPanel.book.title}
                 </h2>
-                <p style={{ margin: "6px 0 0", color: "#555", fontSize: 14 }}>
-                  by {detailsPanel.book.author}
-                </p>
+                {!detailsPanel.isEditing && (
+                  <p style={{ margin: "6px 0 0", color: "#555", fontSize: 14 }}>
+                    by {detailsPanel.book.author}
+                  </p>
+                )}
               </div>
               <button
-                onClick={() => setDetailsPanel({ open: false, book: null })}
+                onClick={() => setDetailsPanel({ open: false, book: null, isEditing: false, editData: null, isSaving: false })}
                 style={{
                   border: "1px solid #ddd",
                   background: "#fff",
@@ -590,95 +722,333 @@ export default function BooksPage() {
               </button>
             </div>
 
-            <div style={{ borderTop: "1px solid #eee", paddingTop: 16 }}>
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 12, color: "#999", fontWeight: 700 }}>GENRE</div>
-                <div style={{ color: "#111", marginTop: 4 }}>{detailsPanel.book.category}</div>
-              </div>
+            {detailsPanel.isEditing && detailsPanel.editData ? (
+              <div style={{ borderTop: "1px solid #eee", paddingTop: 16 }}>
+                <div style={{ display: "grid", gap: 12 }}>
+                  <label style={{ color: "#111" }}>
+                    Title
+                    <input
+                      value={detailsPanel.editData.title || ""}
+                      onChange={(e) => setDetailsPanel((p) => ({ ...p, editData: { ...p.editData!, title: e.target.value } }))}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: 10,
+                        borderRadius: 8,
+                        border: "1px solid #ccc",
+                        color: "#111",
+                        marginTop: 6,
+                      }}
+                    />
+                  </label>
 
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 12, color: "#999", fontWeight: 700 }}>AREA</div>
-                <div style={{ color: "#111", marginTop: 4 }}>
-                  {areaById.get(detailsPanel.book.area_id) ?? "Unknown"}
+                  <label style={{ color: "#111" }}>
+                    Author
+                    <input
+                      value={detailsPanel.editData.author || ""}
+                      onChange={(e) => setDetailsPanel((p) => ({ ...p, editData: { ...p.editData!, author: e.target.value } }))}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: 10,
+                        borderRadius: 8,
+                        border: "1px solid #ccc",
+                        color: "#111",
+                        marginTop: 6,
+                      }}
+                    />
+                  </label>
+
+                  <label style={{ color: "#111" }}>
+                    Genre
+                    <select
+                      value={detailsPanel.editData.category || ""}
+                      onChange={(e) => setDetailsPanel((p) => ({ ...p, editData: { ...p.editData!, category: e.target.value } }))}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: 10,
+                        borderRadius: 8,
+                        border: "1px solid #ccc",
+                        color: "#111",
+                        marginTop: 6,
+                      }}
+                    >
+                      {GENRES.map((g) => (
+                        <option key={g} value={g}>
+                          {g}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label style={{ color: "#111" }}>
+                    Area
+                    <select
+                      value={detailsPanel.editData.area_id || ""}
+                      onChange={(e) => setDetailsPanel((p) => ({ ...p, editData: { ...p.editData!, area_id: e.target.value } }))}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: 10,
+                        borderRadius: 8,
+                        border: "1px solid #ccc",
+                        color: "#111",
+                        marginTop: 6,
+                      }}
+                    >
+                      {areas.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}, {a.state}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label style={{ color: "#111" }}>
+                    Publication Year
+                    <input
+                      value={detailsPanel.editData.publication_year || ""}
+                      onChange={(e) => setDetailsPanel((p) => ({ ...p, editData: { ...p.editData!, publication_year: e.target.value ? Number(e.target.value) : null } }))}
+                      inputMode="numeric"
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: 10,
+                        borderRadius: 8,
+                        border: "1px solid #ccc",
+                        color: "#111",
+                        marginTop: 6,
+                      }}
+                    />
+                  </label>
+
+                  <label style={{ color: "#111" }}>
+                    Language
+                    <input
+                      value={detailsPanel.editData.language || ""}
+                      onChange={(e) => setDetailsPanel((p) => ({ ...p, editData: { ...p.editData!, language: e.target.value } }))}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: 10,
+                        borderRadius: 8,
+                        border: "1px solid #ccc",
+                        color: "#111",
+                        marginTop: 6,
+                      }}
+                    />
+                  </label>
+
+                  <label style={{ color: "#111" }}>
+                    Copies Total
+                    <input
+                      type="number"
+                      min={1}
+                      value={detailsPanel.editData.copies_total || 1}
+                      onChange={(e) => setDetailsPanel((p) => ({ ...p, editData: { ...p.editData!, copies_total: Number(e.target.value) } }))}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: 10,
+                        borderRadius: 8,
+                        border: "1px solid #ccc",
+                        color: "#111",
+                        marginTop: 6,
+                      }}
+                    />
+                  </label>
+
+                  <label style={{ color: "#111" }}>
+                    Description
+                    <textarea
+                      value={detailsPanel.editData.description || ""}
+                      onChange={(e) => setDetailsPanel((p) => ({ ...p, editData: { ...p.editData!, description: e.target.value } }))}
+                      rows={4}
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        padding: 10,
+                        borderRadius: 8,
+                        border: "1px solid #ccc",
+                        color: "#111",
+                        marginTop: 6,
+                      }}
+                    />
+                  </label>
+
+                  <label style={{ display: "flex", gap: 8, alignItems: "center", color: "#111" }}>
+                    <input
+                      type="checkbox"
+                      checked={detailsPanel.editData.available_now ?? false}
+                      onChange={(e) => setDetailsPanel((p) => ({ ...p, editData: { ...p.editData!, available_now: e.target.checked } }))}
+                    />
+                    Available now
+                  </label>
+                </div>
+
+                <div style={{ display: "flex", gap: 10, marginTop: 20, borderTop: "1px solid #eee", paddingTop: 16 }}>
+                  <button
+                    onClick={saveEdit}
+                    disabled={detailsPanel.isSaving}
+                    style={{
+                      flex: 1,
+                      padding: "12px",
+                      borderRadius: 10,
+                      border: "1px solid #111",
+                      background: "#111",
+                      color: "#fff",
+                      fontWeight: 800,
+                      cursor: detailsPanel.isSaving ? "not-allowed" : "pointer",
+                      opacity: detailsPanel.isSaving ? 0.6 : 1,
+                    }}
+                  >
+                    {detailsPanel.isSaving ? "Saving..." : "Save changes"}
+                  </button>
+                  <button
+                    onClick={closeEditMode}
+                    disabled={detailsPanel.isSaving}
+                    style={{
+                      flex: 1,
+                      padding: "12px",
+                      borderRadius: 10,
+                      border: "1px solid #ddd",
+                      background: "#f5f5f5",
+                      color: "#111",
+                      fontWeight: 800,
+                      cursor: detailsPanel.isSaving ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Cancel
+                  </button>
                 </div>
               </div>
+            ) : (
+              <>
+                <div style={{ borderTop: "1px solid #eee", paddingTop: 16 }}>
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, color: "#999", fontWeight: 700 }}>GENRE</div>
+                    <div style={{ color: "#111", marginTop: 4 }}>{detailsPanel.book.category}</div>
+                  </div>
 
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 12, color: "#999", fontWeight: 700 }}>LANGUAGE</div>
-                <div style={{ color: "#111", marginTop: 4 }}>{detailsPanel.book.language}</div>
-              </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, color: "#999", fontWeight: 700 }}>AREA</div>
+                    <div style={{ color: "#111", marginTop: 4 }}>
+                      {areaById.get(detailsPanel.book.area_id) ?? "Unknown"}
+                    </div>
+                  </div>
 
-              {detailsPanel.book.publication_year && (
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 12, color: "#999", fontWeight: 700 }}>YEAR</div>
-                  <div style={{ color: "#111", marginTop: 4 }}>{detailsPanel.book.publication_year}</div>
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, color: "#999", fontWeight: 700 }}>LANGUAGE</div>
+                    <div style={{ color: "#111", marginTop: 4 }}>{detailsPanel.book.language}</div>
+                  </div>
+
+                  {detailsPanel.book.publication_year && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 12, color: "#999", fontWeight: 700 }}>YEAR</div>
+                      <div style={{ color: "#111", marginTop: 4 }}>{detailsPanel.book.publication_year}</div>
+                    </div>
+                  )}
+
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, color: "#999", fontWeight: 700 }}>STATUS</div>
+                    <div
+                      style={{
+                        color: detailsPanel.book.available_now ? "green" : "#999",
+                        marginTop: 4,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {detailsPanel.book.available_now ? "Available" : "Not available"}
+                    </div>
+                  </div>
+
+                  {detailsPanel.book.description && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 12, color: "#999", fontWeight: 700 }}>DESCRIPTION</div>
+                      <p style={{ color: "#333", marginTop: 8, lineHeight: 1.6 }}>
+                        {detailsPanel.book.description}
+                      </p>
+                    </div>
+                  )}
                 </div>
-              )}
 
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 12, color: "#999", fontWeight: 700 }}>STATUS</div>
-                <div
-                  style={{
-                    color: detailsPanel.book.available_now ? "green" : "#999",
-                    marginTop: 4,
-                    fontWeight: 700,
-                  }}
-                >
-                  {detailsPanel.book.available_now ? "Available" : "Not available"}
+                <div style={{ display: "flex", gap: 10, marginTop: 20, borderTop: "1px solid #eee", paddingTop: 16 }}>
+                  {isBookOwner ? (
+                    <>
+                      <button
+                        onClick={openEditMode}
+                        style={{
+                          flex: 1,
+                          padding: "12px",
+                          borderRadius: 10,
+                          border: "1px solid #ff9500",
+                          background: "#fff",
+                          color: "#ff9500",
+                          fontWeight: 800,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={deleteBook}
+                        style={{
+                          flex: 1,
+                          padding: "12px",
+                          borderRadius: 10,
+                          border: "1px solid #d32f2f",
+                          background: "#fff",
+                          color: "#d32f2f",
+                          fontWeight: 800,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </>
+                  ) : userEmail ? (
+                    <button
+                      onClick={() => {
+                        setDetailsPanel({ open: false, book: null, isEditing: false, editData: null, isSaving: false });
+                        openRequestPanel(detailsPanel.book!.id, detailsPanel.book!.title, detailsPanel.book!.author);
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: "12px",
+                        borderRadius: 10,
+                        border: "1px solid #111",
+                        background: "#111",
+                        color: "#fff",
+                        fontWeight: 800,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Request this book
+                    </button>
+                  ) : (
+                    <a
+                      href="/login"
+                      style={{
+                        flex: 1,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "12px",
+                        borderRadius: 10,
+                        border: "1px solid #ddd",
+                        background: "#f5f5f5",
+                        color: "#111",
+                        fontWeight: 800,
+                        textDecoration: "none",
+                      }}
+                    >
+                      Login to request
+                    </a>
+                  )}
                 </div>
-              </div>
-
-              {detailsPanel.book.description && (
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 12, color: "#999", fontWeight: 700 }}>DESCRIPTION</div>
-                  <p style={{ color: "#333", marginTop: 8, lineHeight: 1.6 }}>
-                    {detailsPanel.book.description}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: "flex", gap: 10, marginTop: 20, borderTop: "1px solid #eee", paddingTop: 16 }}>
-              {userEmail ? (
-                <button
-                  onClick={() => {
-                    setDetailsPanel({ open: false, book: null });
-                    openRequestPanel(detailsPanel.book!.id, detailsPanel.book!.title, detailsPanel.book!.author);
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: "12px",
-                    borderRadius: 10,
-                    border: "1px solid #111",
-                    background: "#111",
-                    color: "#fff",
-                    fontWeight: 800,
-                    cursor: "pointer",
-                  }}
-                >
-                  Request this book
-                </button>
-              ) : (
-                <a
-                  href="/login"
-                  style={{
-                    flex: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "12px",
-                    borderRadius: 10,
-                    border: "1px solid #ddd",
-                    background: "#f5f5f5",
-                    color: "#111",
-                    fontWeight: 800,
-                    textDecoration: "none",
-                  }}
-                >
-                  Login to request
-                </a>
-              )}
-            </div>
+              </>
+            )}
           </div>
         </div>
       ) : null}
