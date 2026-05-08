@@ -115,7 +115,7 @@ export default function HomePage() {
           <img
             src="/arcs-logo.svg"
             alt="American Romanian Cultural Society"
-            style={{ height: 56, width: "auto", display: "block" }}
+            style={{ height: 90, width: "auto", display: "block" }}
           />
           <div style={{ fontWeight: 800, color: "#111" }}>{title}</div>
         </div>
