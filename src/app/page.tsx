@@ -111,16 +111,22 @@ export default function HomePage() {
           gap: 12,
         }}
       >
-        <div style={{ fontWeight: 800 }}>{title}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <img
+            src="/arcs-logo.svg"
+            alt="American Romanian Cultural Society"
+            style={{ height: 56, width: "auto", display: "block" }}
+          />
+          <div style={{ fontWeight: 800, color: "#111" }}>{title}</div>
+        </div>
 
         <nav style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <a href="/books">Books</a>
           <a href="/give">Give</a>
-          <a href="/admin/home">Admin</a>
 
           {userEmail ? (
             <>
-              <span style={{ color: "#555", fontSize: 13 }}>{userEmail}</span>
+              <span style={{ color: "#222", fontSize: 13 }}>{userEmail}</span>
               <button onClick={logout}>Logout</button>
             </>
           ) : (
@@ -223,8 +229,8 @@ export default function HomePage() {
               background: "#fff",
             }}
           >
-            <div style={{ fontWeight: 800 }}>Browse Books </div>
-            <p style={{ margin: "8px 0 0", color: "#555" }}>
+            <div style={{ fontWeight: 800, color: "#111" }}>Browse Books</div>
+            <p style={{ margin: "8px 0 0", color: "#222" }}>
               Find Romanian books in your area and contact the giver.
             </p>
           </div>
@@ -237,9 +243,9 @@ export default function HomePage() {
               background: "#fff",
             }}
           >
-            <div style={{ fontWeight: 800 }}>Loan Books </div>
-            <p style={{ margin: "8px 0 0", color: "#555" }}>
-              Login required. Add books you're willing to lend. Keep the library growing.
+            <div style={{ fontWeight: 800, color: "#111" }}>Loan Books</div>
+            <p style={{ margin: "8px 0 0", color: "#222" }}>
+              Login required. Add books you&apos;re willing to lend. Keep the library growing.
             </p>
           </div>
 
@@ -251,9 +257,9 @@ export default function HomePage() {
               background: "#fff",
             }}
           >
-            <div style={{ fontWeight: 800 }}>Borrow Books</div>
-            <p style={{ margin: "8px 0 0", color: "#555" }}>
-              Login Required. Click "Request" to open an email pre-filled to the giver. 
+            <div style={{ fontWeight: 800, color: "#111" }}>Borrow Books</div>
+            <p style={{ margin: "8px 0 0", color: "#222" }}>
+              Login required. Click &quot;Request&quot; to open an email pre-filled to the giver.
             </p>
           </div>
         </section>
