@@ -93,11 +93,11 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { bookId: string } }
+  { params }: { params: Promise<{ bookId: string }> }
 ) {
   try {
-    const bookId = params.bookId;
-
+    const { bookId } = await params;
+    
     // Get the session from the request headers
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
