@@ -3,10 +3,10 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { bookId: string } }
+  { params }: { params: Promise<{ bookId: string }> }
 ) {
   try {
-    const bookId = params.bookId;
+    const { bookId } = await params;
     
     // Get the session from the request headers
     const authHeader = req.headers.get("authorization");
